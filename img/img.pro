@@ -14,7 +14,5 @@ HEADERS += \
 RESOURCES += \
     icons.qrc
 
-LIBS += -lprofiler -ltbb
-
 QMAKE_CXXFLAGS += -std=c++11
 QT += widgets
