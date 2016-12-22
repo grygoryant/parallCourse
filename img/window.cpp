@@ -9,6 +9,9 @@
 #include <QFileDialog>
 #include <QToolBar>
 #include "view.hpp"
+#include <iostream>
+#include <QDebug>
+#include <QBuffer>
 
 #include <QElapsedTimer>
 
@@ -76,7 +79,21 @@ void Window::openImage() {
     QListWidgetItem* it = 0;
 
     for (auto fileName : fileNames) {
-        QPixmap src(fileName);
+        QFile img( fileName );
+        img.open( QIODevice::ReadOnly );
+        if( !img.isOpen() ) {
+            qDebug() << "Error opening file " << fileName;
+            exit(1);
+        }
+        uchar *mmapedFile = img.map(0, img.size() );
+        if( mmapedFile == nullptr ) {
+            std::cout << "Error mmaping file\n";
+            exit(1);
+        }
+        qDebug() << static_cast<void *>( mmapedFile ) << img.size();
+
+        QPixmap src;
+        src.loadFromData( mmapedFile, img.size() );
         if (src.isNull()) {
             err << fileName;
         }
@@ -88,6 +105,7 @@ void Window::openImage() {
             it = new QListWidgetItem(img->image(), QString(), tList);
             tList->addItem(it);
             it->setData(Qt::UserRole, QVariant::fromValue((void*)img));
+
         }
     }
 
