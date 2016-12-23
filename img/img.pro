@@ -15,4 +15,11 @@ RESOURCES += \
     icons.qrc
 
 QMAKE_CXXFLAGS += -std=c++11
-QT += widgets
+CONFIG += c++11
+
+QT += widgets core gui
+
+LIBS += -L/usr/local/lib -lSimpleAmqpClient
+
+INCLUDEPATH += /usr/local/include/
+

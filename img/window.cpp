@@ -14,6 +14,7 @@
 #include <QBuffer>
 
 #include <QElapsedTimer>
+#include <SimpleAmqpClient/SimpleAmqpClient.h>
 
 Window::Window(QWidget *parent)
     : QMainWindow(parent)
@@ -79,6 +80,8 @@ void Window::openImage() {
     QListWidgetItem* it = 0;
 
     for (auto fileName : fileNames) {
+        AmqpClient::Channel::ptr_t connection = AmqpClient::Channel::Create("localhost");
+
         QFile img( fileName );
         img.open( QIODevice::ReadOnly );
         if( !img.isOpen() ) {
@@ -90,7 +93,6 @@ void Window::openImage() {
             std::cout << "Error mmaping file\n";
             exit(1);
         }
-        qDebug() << static_cast<void *>( mmapedFile ) << img.size();
 
         QPixmap src;
         src.loadFromData( mmapedFile, img.size() );
