@@ -1,5 +1,6 @@
 #include <QApplication>
 #include "window.hpp"
+#include "simplepocohandler.h"
 
 int main(int ac, char** av) {
     QApplication app(ac, av);

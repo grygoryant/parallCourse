@@ -14,7 +14,8 @@
 #include <QBuffer>
 
 #include <QElapsedTimer>
-#include <SimpleAmqpClient/SimpleAmqpClient.h>
+#include <unistd.h>
+#include "simplepocohandler.h"
 
 Window::Window(QWidget *parent)
     : QMainWindow(parent)
@@ -71,55 +72,96 @@ Window::~Window() {
 }
 
 void Window::openImage() {
-    QString nameFilter = "Images (*.bmp *.png *.jpg *.jpeg)";
-    QStringList fileNames = QFileDialog::getOpenFileNames(0, "Open image",
-                                                    QString(), nameFilter);
-    if (fileNames.isEmpty()) return;
+    pid_t pid = fork();
+    if( pid == 0 ) {
+        SimplePocoHandler handler("localhost", 5672);
 
-    QStringList err;
-    QListWidgetItem* it = 0;
+        AMQP::Connection connection(&handler, AMQP::Login("guest", "guest"), "/");
 
-    for (auto fileName : fileNames) {
-        AmqpClient::Channel::ptr_t connection = AmqpClient::Channel::Create("localhost");
+        AMQP::Channel channel(&connection);
+        channel.declareQueue("hello");
+        channel.consume("hello", AMQP::noack).onReceived(
+                    [&handler](const AMQP::Message &message,
+                    uint64_t deliveryTag,
+                    bool redelivered)
+        {
 
-        QFile img( fileName );
-        img.open( QIODevice::ReadOnly );
-        if( !img.isOpen() ) {
-            qDebug() << "Error opening file " << fileName;
-            exit(1);
-        }
-        uchar *mmapedFile = img.map(0, img.size() );
-        if( mmapedFile == nullptr ) {
-            std::cout << "Error mmaping file\n";
-            exit(1);
-        }
+            std::cout <<" [x] Received "<<message.message() << std::endl;
+            handler.quit();
+        });
 
-        QPixmap src;
-        src.loadFromData( mmapedFile, img.size() );
-        if (src.isNull()) {
-            err << fileName;
-        }
-        else {
-            Image* img = new Image;
-            tImgs << img;
-            img->setImage(src);
+        std::cout << " [*] Waiting for messages. To exit press CTRL-C\n";
+        handler.loop();
+    } else if( pid > 0 ) {
+        SimplePocoHandler handler("localhost", 5672);
 
-            it = new QListWidgetItem(img->image(), QString(), tList);
-            tList->addItem(it);
-            it->setData(Qt::UserRole, QVariant::fromValue((void*)img));
+        AMQP::Connection connection(&handler, AMQP::Login("guest", "guest"), "/");
+        AMQP::Channel channel(&connection);
 
-        }
+        channel.onReady([&]()
+        {
+            if(handler.connected())
+            {
+                channel.publish("", "hello", "Hello World!");
+                std::cout << " [x] Sent 'Hello World!'" << std::endl;
+                handler.quit();
+            }
+        });
+
+        handler.loop();
+//        QString nameFilter = "Images (*.bmp *.png *.jpg *.jpeg)";
+//        QStringList fileNames = QFileDialog::getOpenFileNames(0, "Open image",
+//                                                        QString(), nameFilter);
+//        if (fileNames.isEmpty()) return;
+
+//        QStringList err;
+//        QListWidgetItem* it = 0;
+
+//        for (auto fileName : fileNames) {
+
+//            QFile img( fileName );
+//            img.open( QIODevice::ReadOnly );
+//            if( !img.isOpen() ) {
+//                qDebug() << "Error opening file " << fileName;
+//                exit(1);
+//            }
+//            uchar *mmapedFile = img.map(0, img.size() );
+//            if( mmapedFile == nullptr ) {
+//                std::cout << "Error mmaping file\n";
+//                exit(1);
+//            }
+
+//            QPixmap src;
+//            src.loadFromData( mmapedFile, img.size() );
+//            if (src.isNull()) {
+//                err << fileName;
+//            }
+//            else {
+//                Image* img = new Image;
+//                tImgs << img;
+//                img->setImage(src);
+
+//                it = new QListWidgetItem(img->image(), QString(), tList);
+//                tList->addItem(it);
+//                it->setData(Qt::UserRole, QVariant::fromValue((void*)img));
+
+//            }
+//        }
+
+//        if (err.size() < fileNames.size()) {
+//            tList->setCurrentItem(it);
+//        }
+
+//        if (!err.isEmpty()) {
+//            QString msg("Cannot load some of the images:\n");
+//            msg += err.join("\n");
+//            QMessageBox::warning(0, "Error", msg);
+//        }
+    } else {
+        qDebug() << "Fork crashed!";
+        exit(1);
     }
 
-    if (err.size() < fileNames.size()) {
-        tList->setCurrentItem(it);
-    }
-
-    if (!err.isEmpty()) {
-        QString msg("Cannot load some of the images:\n");
-        msg += err.join("\n");
-        QMessageBox::warning(0, "Error", msg);
-    }
 }
 
 void Window::saveImage() {
