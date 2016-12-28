@@ -72,43 +72,6 @@ Window::~Window() {
 }
 
 void Window::openImage() {
-    pid_t pid = fork();
-    if( pid == 0 ) {
-        SimplePocoHandler handler("localhost", 5672);
-
-        AMQP::Connection connection(&handler, AMQP::Login("guest", "guest"), "/");
-
-        AMQP::Channel channel(&connection);
-        channel.declareQueue("hello");
-        channel.consume("hello", AMQP::noack).onReceived(
-                    [&handler](const AMQP::Message &message,
-                    uint64_t deliveryTag,
-                    bool redelivered)
-        {
-
-            std::cout <<" [x] Received "<<message.message() << std::endl;
-            handler.quit();
-        });
-
-        std::cout << " [*] Waiting for messages. To exit press CTRL-C\n";
-        handler.loop();
-    } else if( pid > 0 ) {
-        SimplePocoHandler handler("localhost", 5672);
-
-        AMQP::Connection connection(&handler, AMQP::Login("guest", "guest"), "/");
-        AMQP::Channel channel(&connection);
-
-        channel.onReady([&]()
-        {
-            if(handler.connected())
-            {
-                channel.publish("", "hello", "Hello World!");
-                std::cout << " [x] Sent 'Hello World!'" << std::endl;
-                handler.quit();
-            }
-        });
-
-        handler.loop();
 //        QString nameFilter = "Images (*.bmp *.png *.jpg *.jpeg)";
 //        QStringList fileNames = QFileDialog::getOpenFileNames(0, "Open image",
 //                                                        QString(), nameFilter);
@@ -157,11 +120,6 @@ void Window::openImage() {
 //            msg += err.join("\n");
 //            QMessageBox::warning(0, "Error", msg);
 //        }
-    } else {
-        qDebug() << "Fork crashed!";
-        exit(1);
-    }
-
 }
 
 void Window::saveImage() {
