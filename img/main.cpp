@@ -3,7 +3,7 @@
 #include <sys/types.h>
 #include <QDebug>
 #include "window.hpp"
-#include "simplepocohandler.h"
+
 
 int main(int ac, char** av) {
     const char *secondProcName =
@@ -11,56 +11,22 @@ int main(int ac, char** av) {
 
     pid_t pid = fork();
     if( pid == 0 ) {
-        execvp( secondProcName, av );
+        execv( secondProcName, av );
     } else if ( pid > 0 ) {
-        sleep(4);
-        SimplePocoHandler handler("localhost", 5672);
+        QApplication app(ac, av);
 
-        AMQP::Connection connection(&handler, AMQP::Login("guest", "guest"), "/");
-        AMQP::Channel channel(&connection);
+        Window win;
+        win.resize(600, 400);
+        win.show();
 
-        channel.onReady([&]()
-        {
-            if(handler.connected())
-            {
-                struct lol {
-                    int a;
-                    double b;
-                    std::string s;
-                };
-
-                lol payload;
-                payload.a = 666;
-                payload.b = 42.42;
-                payload.s = "Loooooool duuuude!";
-
-                AMQP::Envelope e( (const char *)&payload, sizeof(lol) );
-                channel.publish("", "hello", e);
-                qDebug() << " [x] Payload sent.";
-                handler.quit();
-            } else {
-                qDebug() << "Lol1";
-            }
-        });
-
-        handler.loop();
-
+        return app.exec();
     } else {
-        qDebug() << "Error in fork: " << errno;
+        qDebug() << "Error in fork.";
         exit(1);
     }
-    int status = 0;
-    waitpid( 0, &status, WNOHANG );
+
+//    int status = 0;
+//    waitpid( pid, &status, 0 );
+
     return 0;
-//    QApplication app(ac, av);
-
-//    Window win;
-//    win.resize(600, 400);
-//    win.show();
-
-//    return app.exec();
-
 }
-
-
-//handler.loop();

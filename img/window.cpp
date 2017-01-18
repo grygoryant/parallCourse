@@ -15,10 +15,19 @@
 
 #include <QElapsedTimer>
 #include <unistd.h>
-#include "simplepocohandler.h"
+
+#include <zmq.hpp>
+#include "message.h"
+
+#include <sys/mman.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 Window::Window(QWidget *parent)
-    : QMainWindow(parent)
+    : QMainWindow(parent),
+      context(1),
+      socket(context, ZMQ_PAIR)
 {
     QWidget* worksp = new QWidget;
     setCentralWidget(worksp);
@@ -64,6 +73,7 @@ Window::Window(QWidget *parent)
                                      this, SLOT(processImage()));
 
     statusBar();
+    socket.bind("tcp://*:5555");
 }
 
 Window::~Window() {
@@ -72,54 +82,65 @@ Window::~Window() {
 }
 
 void Window::openImage() {
-//        QString nameFilter = "Images (*.bmp *.png *.jpg *.jpeg)";
-//        QStringList fileNames = QFileDialog::getOpenFileNames(0, "Open image",
-//                                                        QString(), nameFilter);
-//        if (fileNames.isEmpty()) return;
+    QString nameFilter = "Images (*.bmp *.png *.jpg *.jpeg)";
+    QStringList fileNames = QFileDialog::getOpenFileNames(0, "Open image",
+                                                          QString(), nameFilter);
+    if (fileNames.isEmpty()) return;
 
-//        QStringList err;
-//        QListWidgetItem* it = 0;
+    QStringList err;
+    QListWidgetItem* it = 0;
 
-//        for (auto fileName : fileNames) {
+    for (auto fileName : fileNames) {
+        QFile img( fileName );
+        img.open( QIODevice::ReadWrite );
+        if( !img.isOpen() ) {
+            qDebug() << "Error opening file " << fileName;
+            exit(1);
+        }
 
-//            QFile img( fileName );
-//            img.open( QIODevice::ReadOnly );
-//            if( !img.isOpen() ) {
-//                qDebug() << "Error opening file " << fileName;
-//                exit(1);
-//            }
-//            uchar *mmapedFile = img.map(0, img.size() );
-//            if( mmapedFile == nullptr ) {
-//                std::cout << "Error mmaping file\n";
-//                exit(1);
-//            }
+        auto fileSize = img.size();
 
-//            QPixmap src;
-//            src.loadFromData( mmapedFile, img.size() );
-//            if (src.isNull()) {
-//                err << fileName;
-//            }
-//            else {
-//                Image* img = new Image;
-//                tImgs << img;
-//                img->setImage(src);
+        uchar *mmapedFile = img.map(0, fileSize );
+        if( mmapedFile == nullptr ) {
+            std::cout << "Error mmaping file\n";
+            exit(1);
+        }
 
-//                it = new QListWidgetItem(img->image(), QString(), tList);
-//                tList->addItem(it);
-//                it->setData(Qt::UserRole, QVariant::fromValue((void*)img));
+        //zmq::message_t request(5);
+        //memcpy((uchar *)request.data(), &mmapedFile, sizeof(uchar *));
+        //socket.send(request);
+        socket.send(&mmapedFile, sizeof(unsigned char*));
+        //auto imgSize = img.size();
+        socket.send(&fileSize, sizeof(fileSize));
 
-//            }
-//        }
+        qDebug() << "Sdin: " << mmapedFile << fileSize << mmapedFile[444];
 
-//        if (err.size() < fileNames.size()) {
-//            tList->setCurrentItem(it);
-//        }
+        QPixmap src;
+        src.loadFromData( mmapedFile, fileSize );
+        if (src.isNull()) {
+            err << fileName;
+        }
+        else {
+            Image* img = new Image;
+            tImgs << img;
+            img->setImage(src);
 
-//        if (!err.isEmpty()) {
-//            QString msg("Cannot load some of the images:\n");
-//            msg += err.join("\n");
-//            QMessageBox::warning(0, "Error", msg);
-//        }
+            it = new QListWidgetItem(img->image(), QString(), tList);
+            tList->addItem(it);
+            it->setData(Qt::UserRole, QVariant::fromValue((void*)img));
+
+        }
+    }
+
+    if (err.size() < fileNames.size()) {
+        tList->setCurrentItem(it);
+    }
+
+    if (!err.isEmpty()) {
+        QString msg("Cannot load some of the images:\n");
+        msg += err.join("\n");
+        QMessageBox::warning(0, "Error", msg);
+    }
 }
 
 void Window::saveImage() {

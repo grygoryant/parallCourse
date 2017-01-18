@@ -2,6 +2,7 @@
 #define WINDOW_HPP
 
 #include <QMainWindow>
+#include <zmq.hpp>
 
 class QListWidget;
 class QComboBox;
@@ -31,6 +32,9 @@ private:
     View* tView;
     QComboBox* tScale;
     QListWidget* tList;
+
+    zmq::context_t context;
+    zmq::socket_t socket;
 
     void setImage(const QPixmap& p);
 
