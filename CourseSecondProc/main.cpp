@@ -5,36 +5,35 @@
 #include <zmq.hpp>
 #include <iostream>
 #include <QPixmap>
-#include <sys/mman.h>
-#include "message.h"
+#include <boost/interprocess/file_mapping.hpp>
+#include <boost/interprocess/mapped_region.hpp>
+
+using namespace boost::interprocess;
 
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
 
-    zmq::context_t context(1);
-    zmq::socket_t socket(context, ZMQ_PAIR);
+    zmq::context_t context (1);
+    zmq::socket_t socket (context, ZMQ_PAIR);
 
-    std::cout << "Connecting to hello world server..." << std::endl;
     socket.connect ("tcp://localhost:5555");
 
     zmq::message_t request;
-    uchar *addr = nullptr;
-    //socket.recv(&request);
-    socket.recv(&addr, sizeof(addr));
+    socket.recv (&request);
+    std::string rpl = std::string(static_cast<char*>(request.data()), request.size());
 
-    qint64 imgSize = 0;
-    socket.recv(&imgSize, sizeof(imgSize));
+    file_mapping mFile( rpl.c_str(), read_only );
+    mapped_region region( mFile, read_only );
 
-    qDebug() << "Recv: " << addr << imgSize;
+    uchar *addr = static_cast<uchar *>( region.get_address() );
+    std::size_t size = region.get_size();
 
-//    QPixmap src;
-//    src.loadFromData( addr, imgSize );
-//    if (src.isNull()) {
-//        qDebug() << "fileName";
-//    }
+    qDebug() << "Recv: " << rpl.size() << addr << size << addr[0];
 
-
+    QPixmap pic;
+    pic.loadFromData( addr, size );
+    qDebug() << pic.size() << pic.colorCount();
 
     return app.exec();
 }

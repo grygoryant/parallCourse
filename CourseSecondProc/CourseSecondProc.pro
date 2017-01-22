@@ -14,9 +14,10 @@ LIBS += -L/usr/local/lib -lzmq
 
 INCLUDEPATH += /usr/local/include
 
-INCLUDEPATH += /Users/grigorii/Documents/parallCourse/img
+INCLUDEPATH += /Volumes/Toshiba/grigorii/Documents/parallCourse/img
 
 HEADERS += \
-    ../parallCourse/img/message.h
+    ../parallCourse/img/message.h \
+    ../img/message.h
 
 

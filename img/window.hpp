@@ -3,6 +3,10 @@
 
 #include <QMainWindow>
 #include <zmq.hpp>
+#include <boost/interprocess/file_mapping.hpp>
+#include <boost/interprocess/mapped_region.hpp>
+
+using namespace boost::interprocess;
 
 class QListWidget;
 class QComboBox;
@@ -37,6 +41,10 @@ private:
     zmq::socket_t socket;
 
     void setImage(const QPixmap& p);
+
+    void loadImageToShMem( const QString &fileName );
+    void loadImageFromShMem();
+    void detachShMem();
 
     QList<Image*> tImgs;
 };

@@ -7,7 +7,7 @@
 
 int main(int ac, char** av) {
     const char *secondProcName =
-            "/Users/grigorii/Documents/build-CourseSecondProc-Desktop_Qt_5_7_0_clang_64bit-Debug/CourseSecondProc";
+            "/Volumes/Toshiba/grigorii/Documents/parallCourse/build-CourseSecondProc-Desktop_Qt_5_7_0_clang_64bit-Debug/CourseSecondProc";
 
     pid_t pid = fork();
     if( pid == 0 ) {

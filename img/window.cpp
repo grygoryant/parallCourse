@@ -12,6 +12,7 @@
 #include <iostream>
 #include <QDebug>
 #include <QBuffer>
+#include <QImage>
 
 #include <QElapsedTimer>
 #include <unistd.h>
@@ -73,7 +74,9 @@ Window::Window(QWidget *parent)
                                      this, SLOT(processImage()));
 
     statusBar();
+
     socket.bind("tcp://*:5555");
+
 }
 
 Window::~Window() {
@@ -91,32 +94,19 @@ void Window::openImage() {
     QListWidgetItem* it = 0;
 
     for (auto fileName : fileNames) {
-        QFile img( fileName );
-        img.open( QIODevice::ReadWrite );
-        if( !img.isOpen() ) {
-            qDebug() << "Error opening file " << fileName;
-            exit(1);
-        }
+        file_mapping mFile( fileName.toStdString().c_str(), read_write );
+        mapped_region region( mFile, read_write );
+        uchar *addr = static_cast<uchar *>( region.get_address() );
+        std::size_t size = region.get_size();
 
-        auto fileSize = img.size();
+        qDebug() << "Send: " << fileName.size() << addr << size << addr[0];
 
-        uchar *mmapedFile = img.map(0, fileSize );
-        if( mmapedFile == nullptr ) {
-            std::cout << "Error mmaping file\n";
-            exit(1);
-        }
+        std::string req = fileName.toStdString();
+        zmq::message_t request( req.size() );
+        memcpy( request.data(), req.data(), req.size() );
+        socket.send( request );
 
-        //zmq::message_t request(5);
-        //memcpy((uchar *)request.data(), &mmapedFile, sizeof(uchar *));
-        //socket.send(request);
-        socket.send(&mmapedFile, sizeof(unsigned char*));
-        //auto imgSize = img.size();
-        socket.send(&fileSize, sizeof(fileSize));
-
-        qDebug() << "Sdin: " << mmapedFile << fileSize << mmapedFile[444];
-
-        QPixmap src;
-        src.loadFromData( mmapedFile, fileSize );
+        QPixmap src( fileName );
         if (src.isNull()) {
             err << fileName;
         }
@@ -131,6 +121,7 @@ void Window::openImage() {
 
         }
     }
+
 
     if (err.size() < fileNames.size()) {
         tList->setCurrentItem(it);
